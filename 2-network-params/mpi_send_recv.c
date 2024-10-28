@@ -17,45 +17,34 @@ int main(int argc, char** argv) {
     }
 
     const int tag = 0;
-    int max_bytes = 1000000;
+    int max_bytes = 10000000;
     double start_time, end_time;
     MPI_Status status;
 
-    FILE *fptr = NULL;
-
     if (rank == 0) {
-        fptr = fopen("mpi_send_recv_results.csv", "w");
-        if (fptr == NULL) {
-            printf("Error opening file!\n");
-            MPI_Finalize();
-            return 1;
-        }
-        fprintf(fptr, "Buffer,Time\n");
+        printf("Buffer,Time\n");
     }
 
-    for (int buffer_size = 1; buffer_size <= max_bytes; buffer_size += 100) {
-        char* buffer = (char*) malloc(buffer_size * sizeof(char));
+    for (int buffer_size = 1; buffer_size <= max_bytes; buffer_size *= 2) {
 
         if (rank == 0) {
+            char* buffer = (char*) malloc(buffer_size * sizeof(char));
             start_time = MPI_Wtime();
             MPI_Send(buffer, buffer_size, MPI_BYTE, 1, tag, MPI_COMM_WORLD);
             MPI_Recv(buffer, buffer_size, MPI_BYTE, 1, tag, MPI_COMM_WORLD, &status);
             end_time = MPI_Wtime();
 
-            double total_time = end_time - start_time;
+            double total_time = (end_time - start_time) / 2;
 
-            fprintf(fptr, "%d,%.6f\n", buffer_size, total_time);
+            printf("%d,%.6f\n", buffer_size, total_time);
+            free(buffer);
 
         } else if (rank == 1) {
+            char* buffer = (char*) malloc(buffer_size * sizeof(char));
             MPI_Recv(buffer, buffer_size, MPI_BYTE, 0, tag, MPI_COMM_WORLD, &status);
             MPI_Send(buffer, buffer_size, MPI_BYTE, 0, tag, MPI_COMM_WORLD);
+            free(buffer);
         }
-
-        free(buffer);
-    }
-
-    if (rank == 0) {
-        fclose(fptr);
     }
 
     MPI_Finalize(); 

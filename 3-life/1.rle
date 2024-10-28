@@ -1,0 +1,6 @@
+#C This pattern is only "3 cells away" from being a knightship.
+#C Its 6-th generation differs in 3 cells from the translated initial generation.
+#C Tue Mar 23 00:10:07 MSK 2004
+x = 14, y = 19, rule = b3/s23
+11bobo$6b2o2bo$6bob2o$5bo5b2o$bobo2bo$o$o3bo2b3ob2o$o3bo4bo$5bob2o$bo
+3bob2o$2ob3o$4b2obo$2o2b3o$2obo$3b2o4b2o$b3o$2bo2b3ob2o$3b2o2b2o$4b3o!
