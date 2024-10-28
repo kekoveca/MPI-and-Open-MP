@@ -188,12 +188,14 @@ void life_collect(life_t *l) {
 }
 
 void life_exchange(life_t *l) {
-    int left = (l->rank == 0) ? l->size - 1 : l->rank - 1;   // Левый сосед
-    int right = (l->rank == l->size - 1) ? 0 : l->rank + 1;  // Правый сосед
+    if (l->size != 1) {
+        int left = (l->rank == 0) ? l->size - 1 : l->rank - 1;   // Левый сосед
+        int right = (l->rank == l->size - 1) ? 0 : l->rank + 1;  // Правый сосед
 
-    MPI_Send(l->u0 + ind(0, l->stop - 1), 1, l->string_type, right, 0, MPI_COMM_WORLD);
-    MPI_Recv(l->u0 + ind(0, l->start - 1), 1, l->string_type, left, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Send(l->u0 + ind(0, l->stop - 1), 1, l->string_type, right, 0, MPI_COMM_WORLD);
+        MPI_Recv(l->u0 + ind(0, l->start - 1), 1, l->string_type, left, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    MPI_Send(l->u0 + ind(0, l->start), 1, l->string_type, left, 0, MPI_COMM_WORLD);
-    MPI_Recv(l->u0 + ind(0, l->stop), 1, l->string_type, right, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Send(l->u0 + ind(0, l->start), 1, l->string_type, left, 0, MPI_COMM_WORLD);
+        MPI_Recv(l->u0 + ind(0, l->stop), 1, l->string_type, right, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
 }

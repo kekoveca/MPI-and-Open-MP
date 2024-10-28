@@ -1,4 +1,0 @@
-#C [[ GRID MAXGRIDSIZE 14 THEME Catagolue ]]
-#CSYNTH yl384_1_59_7aeb1999980c43b4945fb7fcdb023326 costs 4 gliders
-x = 59, y = 39, rule = B3/S23
-bo$2bo$3o11$58bo$56b2o$57b2o$34bo$32bobo$33b2o18$29b3o$31bo$30bo!
