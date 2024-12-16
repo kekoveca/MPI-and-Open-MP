@@ -1,12 +1,12 @@
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     int rank, size;
-    MPI_Init(&argc, &argv);               // Initialize MPI
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); // Get the current process rank
-    MPI_Comm_size(MPI_COMM_WORLD, &size); // Get the number of processes
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     if (size < 2) {
         if (rank == 0) {
@@ -16,37 +16,31 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    const int tag = 0;
-    int max_bytes = 10000000;
-    double start_time, end_time;
-    MPI_Status status;
+    int max_size = 1e6;
+    int num_repeats = 1e5;
 
-    if (rank == 0) {
-        printf("Buffer,Time\n");
-    }
+    for (double msg_size = 1; msg_size <= max_size; msg_size *= 10) {
 
-    for (int buffer_size = 1; buffer_size <= max_bytes; buffer_size *= 2) {
+        char *msg_buffer = (char *) calloc(msg_size, sizeof(char));
+        double time = MPI_Wtime();
+        for (int i = 0; i < num_repeats; ++i) {
+            if (rank == 0) {
+                MPI_Send(msg_buffer, msg_size, MPI_CHAR, 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(msg_buffer, msg_size, MPI_CHAR, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            } else if (rank == 1) {
+                MPI_Recv(msg_buffer, msg_size, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(msg_buffer, msg_size, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+            }
+        }
 
         if (rank == 0) {
-            char* buffer = (char*) malloc(buffer_size * sizeof(char));
-            start_time = MPI_Wtime();
-            MPI_Send(buffer, buffer_size, MPI_BYTE, 1, tag, MPI_COMM_WORLD);
-            MPI_Recv(buffer, buffer_size, MPI_BYTE, 1, tag, MPI_COMM_WORLD, &status);
-            end_time = MPI_Wtime();
-
-            double total_time = (end_time - start_time) / 2;
-
-            printf("%d,%.6f\n", buffer_size, total_time);
-            free(buffer);
-
-        } else if (rank == 1) {
-            char* buffer = (char*) malloc(buffer_size * sizeof(char));
-            MPI_Recv(buffer, buffer_size, MPI_BYTE, 0, tag, MPI_COMM_WORLD, &status);
-            MPI_Send(buffer, buffer_size, MPI_BYTE, 0, tag, MPI_COMM_WORLD);
-            free(buffer);
+            time = MPI_Wtime() - time;
+            printf("%f,%f\n", msg_size, 0.5 * time / num_repeats * 1e6);
         }
+
+        free(msg_buffer);
     }
 
-    MPI_Finalize(); 
+    MPI_Finalize();
     return 0;
 }

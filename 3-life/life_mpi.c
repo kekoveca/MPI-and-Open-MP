@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
 
     if (l.rank == l.size - 1) {
         l.end_time = MPI_Wtime();
-        printf("%f\n", end_time - start_time);
+        printf("%f\n", l.end_time - l.start_time);
     }
 
     life_free(&l);
@@ -104,7 +104,6 @@ void life_init(const char *path, life_t *l) {
 
     int s1, s2;
     decomposition(l->ny, l->size, 0, &s1, &s2);
-    // MPI_Type_vector(l->nx, s2 - s1, l->nx, MPI_INT, &(l->block_type));
     MPI_Type_contiguous(l->nx * (s2 - s1), MPI_INT, &(l->block_type));
     MPI_Type_contiguous(l->nx, MPI_INT, &(l->string_type));
     MPI_Type_commit(&(l->block_type));

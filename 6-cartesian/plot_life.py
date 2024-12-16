@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-times = np.loadtxt('./3-life/times.txt')
+times = np.loadtxt('./6-cartesian/times.txt')
 x = np.arange(1, 29)
 times = times[0] / times
 
@@ -14,4 +14,4 @@ plt.xlabel('N, кол-во исполнителей')
 plt.ylabel('$T_1/T_N$') 
 plt.title('График ускорения параллельного алгоритма')
 plt.minorticks_on()
-plt.savefig('./3-life/life_accel.png')
+plt.savefig('./6-cartesian/life_accel.png')

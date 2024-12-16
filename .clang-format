@@ -1,0 +1,13 @@
+# .clang-format
+
+BasedOnStyle: LLVM
+
+# Настройка дополнительных параметров (опционально)
+IndentWidth: 4            # Отступ: 4 пробела
+TabWidth: 4               # Ширина табуляции
+UseTab: Never             # Использовать пробелы вместо табуляции
+ColumnLimit: 120           # Лимит ширины строки
+BreakBeforeBraces: Attach # Расположение скобок: в той же строке
+AllowShortIfStatementsOnASingleLine: false # Запрет на однострочные if
+SpacesBeforeTrailingComments: 1  # Пробел перед комментариями
+SpaceAfterCStyleCast: true       # Пробел после приведения типа (C-style)

@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l walltime=00:01:00,nodes=1:ppn=2
+#PBS -l walltime=00:10:00,nodes=1:ppn=2
 #PBS -N mpi_single
 #PBS -q batch
 
