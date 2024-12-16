@@ -23,6 +23,8 @@ typedef struct {
     int size;
     MPI_Datatype block_type;
     MPI_Datatype string_type;
+
+    double start_time, end_time;
 } life_t;
 
 void life_init(const char *path, life_t *l);
@@ -44,6 +46,8 @@ int main(int argc, char **argv) {
 
     int i;
     char buf[100];
+
+    if (l.rank == l.size - 1) l.start_time = MPI_Wtime();
     for (i = 0; i < l.steps; i++) {
         if (i % l.save_steps == 0) {
             life_collect(&l);
@@ -55,6 +59,11 @@ int main(int argc, char **argv) {
         }
         life_exchange(&l);
         life_step(&l);
+    }
+
+    if (l.rank == l.size - 1) {
+        l.end_time = MPI_Wtime();
+        printf("%f\n", end_time - start_time);
     }
 
     life_free(&l);
