@@ -26,7 +26,6 @@ typedef struct {
     int dims[2];
 
     MPI_Comm comm_cart;
-    MPI_Comm comm_dims[2];
 
     MPI_Datatype block_t;
     MPI_Datatype row_t;
@@ -44,7 +43,6 @@ void life_save_vtk(const char *path, life_t *l);
 void decomposition(const int n, const int p, const int k, int *start, int *stop);
 
 void life_collect(life_t *l);
-void life_collect_1d(life_t *l, MPI_Comm comm, MPI_Datatype block_t, int ind_send, int ind_recv);
 void exchange_rows(life_t *l);
 void exchange_columns(life_t *l);
 void exchange_corners(life_t *l);
@@ -86,17 +84,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void life_collect(life_t *l) {
-    life_collect_1d(l, l->comm_dims[0], l->block_t, ind(l->start[0], l->start[1]), ind(0, l->start[1]));
-    life_collect_1d(l, l->comm_dims[1], l->row_t, ind(0, l->start[1]), ind(0, 0));
-}
-
-void life_collect_1d(life_t *l, MPI_Comm comm, MPI_Datatype block_t, int ind_send, int ind_recv) {
-    int size;
-    MPI_Comm_size(comm, &size);
-    MPI_Gather(l->u0 + ind_send, 1, block_t, l->u0 + ind_recv, 1, block_t, size - 1, comm);
-}
-
 /**
  * Загрузить входную конфигурацию.
  * Формат файла, число шагов, как часто сохранять, размер поля, затем идут
@@ -136,9 +123,6 @@ void life_init(const char *path, life_t *l) {
     decomposition(l->nx, l->dims[0], l->coords[0], l->start, l->stop);
     decomposition(l->ny, l->dims[1], l->coords[1], l->start + 1, l->stop + 1);
 
-    MPI_Comm_split(l->comm_cart, l->coords[1], l->coords[0], l->comm_dims);
-    MPI_Comm_split(l->comm_cart, l->coords[0], l->coords[1], l->comm_dims + 1);
-
     int start[2], stop[2];
     decomposition(l->nx, l->dims[0], 0, start, stop);
     decomposition(l->ny, l->dims[1], l->coords[1], start + 1, stop + 1);
@@ -170,8 +154,6 @@ void life_free(life_t *l) {
     MPI_Type_free(&(l->column));
 
     MPI_Comm_free(&(l->comm_cart));
-    MPI_Comm_free(&(l->comm_dims[0]));
-    MPI_Comm_free(&(l->comm_dims[1]));
 }
 
 void life_save_vtk(const char *path, life_t *l) {
@@ -246,13 +228,14 @@ void exchange_rows(life_t *l) {
     int this_start = ind(l->start[0], l->start[1]);
     int right_start = ind(l->start[0], l->stop[1]);
 
-    int right = (l->coords[1] + 1) % l->dims[1];
-    int left = (l->coords[1] - 1 + l->dims[1]) % l->dims[1];
+    int left, right;
 
-    MPI_Send(l->u0 + this_stop, 1, l->row, right, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + left_stop, 1, l->row, left, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
-    MPI_Send(l->u0 + this_start, 1, l->row, left, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + right_start, 1, l->row, right, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
+    MPI_Cart_shift(l->comm_cart, 1, 1, &left, &right);
+
+    MPI_Send(l->u0 + this_stop, 1, l->row, right, 0, l->comm_cart);
+    MPI_Recv(l->u0 + left_stop, 1, l->row, left, 0, l->comm_cart, MPI_STATUS_IGNORE);
+    MPI_Send(l->u0 + this_start, 1, l->row, left, 0, l->comm_cart);
+    MPI_Recv(l->u0 + right_start, 1, l->row, right, 0, l->comm_cart, MPI_STATUS_IGNORE);
 }
 
 void exchange_columns(life_t *l) {
@@ -261,34 +244,62 @@ void exchange_columns(life_t *l) {
     int this_start = ind(l->start[0], l->start[1]);
     int right_start = ind(l->stop[0], l->start[1]);
 
-    int right = (l->coords[0] + 1) % l->dims[0];
-    int left = (l->coords[0] - 1 + l->dims[0]) % l->dims[0];
+    int left, right;
 
-    MPI_Send(l->u0 + this_stop, 1, l->column, right, 0, l->comm_dims[0]);
-    MPI_Recv(l->u0 + left_stop, 1, l->column, left, 0, l->comm_dims[0], MPI_STATUS_IGNORE);
-    MPI_Send(l->u0 + this_start, 1, l->column, left, 0, l->comm_dims[0]);
-    MPI_Recv(l->u0 + right_start, 1, l->column, right, 0, l->comm_dims[0], MPI_STATUS_IGNORE);
+    MPI_Cart_shift(l->comm_cart, 0, 1, &left, &right);
+
+    MPI_Send(l->u0 + this_stop, 1, l->column, right, 0, l->comm_cart);
+    MPI_Recv(l->u0 + left_stop, 1, l->column, left, 0, l->comm_cart, MPI_STATUS_IGNORE);
+    MPI_Send(l->u0 + this_start, 1, l->column, left, 0, l->comm_cart);
+    MPI_Recv(l->u0 + right_start, 1, l->column, right, 0, l->comm_cart, MPI_STATUS_IGNORE);
 }
 
 void exchange_corners(life_t *l) {
-    int right = (l->coords[1] + 1) % l->dims[1];
-    int left = (l->coords[1] - 1 + l->dims[1]) % l->dims[1];
+    int left, right;
 
-    MPI_Send(l->u0 + ind(l->stop[0], l->stop[1] - 1), 1, MPI_INT, right, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + ind(l->stop[0], l->start[1] - 1), 1, MPI_INT, left, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
+    MPI_Cart_shift(l->comm_cart, 1, 1, &left, &right);
 
-    MPI_Send(l->u0 + ind(l->start[0] - 1, l->stop[1] - 1), 1, MPI_INT, right, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + ind(l->start[0] - 1, l->start[1] - 1), 1, MPI_INT, left, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
+    MPI_Send(l->u0 + ind(l->stop[0], l->stop[1] - 1), 1, MPI_INT, right, 0, l->comm_cart);
+    MPI_Recv(l->u0 + ind(l->stop[0], l->start[1] - 1), 1, MPI_INT, left, 0, l->comm_cart, MPI_STATUS_IGNORE);
 
-    MPI_Send(l->u0 + ind(l->start[0] - 1, l->start[1]), 1, MPI_INT, left, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + ind(l->start[0] - 1, l->stop[1]), 1, MPI_INT, right, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
+    MPI_Send(l->u0 + ind(l->start[0] - 1, l->stop[1] - 1), 1, MPI_INT, right, 0, l->comm_cart);
+    MPI_Recv(l->u0 + ind(l->start[0] - 1, l->start[1] - 1), 1, MPI_INT, left, 0, l->comm_cart, MPI_STATUS_IGNORE);
 
-    MPI_Send(l->u0 + ind(l->stop[0], l->start[1]), 1, MPI_INT, left, 0, l->comm_dims[1]);
-    MPI_Recv(l->u0 + ind(l->stop[0], l->stop[1]), 1, MPI_INT, right, 0, l->comm_dims[1], MPI_STATUS_IGNORE);
+    MPI_Send(l->u0 + ind(l->start[0] - 1, l->start[1]), 1, MPI_INT, left, 0, l->comm_cart);
+    MPI_Recv(l->u0 + ind(l->start[0] - 1, l->stop[1]), 1, MPI_INT, right, 0, l->comm_cart, MPI_STATUS_IGNORE);
+
+    MPI_Send(l->u0 + ind(l->stop[0], l->start[1]), 1, MPI_INT, left, 0, l->comm_cart);
+    MPI_Recv(l->u0 + ind(l->stop[0], l->stop[1]), 1, MPI_INT, right, 0, l->comm_cart, MPI_STATUS_IGNORE);
 }
 
 void life_exchange(life_t *l) {
     exchange_columns(l);
     exchange_rows(l);
     exchange_corners(l);
+}
+
+void life_collect(life_t *l) {
+    int rank, size;
+    int last_coords[2] = {l->dims[0] - 1, l->dims[1] - 1};
+
+    MPI_Comm_rank(l->comm_cart, &rank);
+    MPI_Cart_rank(l->comm_cart, last_coords, &size);
+
+    if (rank == size) {
+        for (int i = 0; i < l->dims[0] * l->dims[1]; i++) {
+            if (i != rank) {
+                int start_x, stop_x, start_y, stop_y;
+
+                int coords[2];
+                MPI_Cart_coords(l->comm_cart, i, 2, coords);
+
+                decomposition(l->nx, l->dims[0], coords[0], &start_x, &stop_x);
+                decomposition(l->ny, l->dims[1], coords[1], &start_y, &stop_y);
+
+                MPI_Recv(l->u0 + ind(start_x, start_y), 1, l->block_t, i, 0, l->comm_cart, MPI_STATUS_IGNORE);
+            }
+        }
+    } else {
+        MPI_Send(l->u0 + ind(l->start[0], l->start[1]), 1, l->block_t, size, 0, l->comm_cart);
+    }
 }
